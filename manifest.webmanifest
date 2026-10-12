@@ -1,0 +1,32 @@
+{
+  "name": "Rouba Pino",
+  "short_name": "Rouba Pino",
+  "description": "Jogo de mesa de 2 a 4 jogadores com dado e pinos.",
+  "lang": "pt-BR",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#12352b",
+  "theme_color": "#12352b",
+  "icons": [
+    {
+      "src": "icones/app-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icones/app-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icones/app-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

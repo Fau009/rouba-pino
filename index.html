@@ -186,6 +186,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brass); out
   .rolling .hop, .rolling .shadow, .pin.can-drag, .corner.pickable, .gstage.ready .cube { animation: none; }
 }
 </style>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icones/apple-touch-icon.png">
 </head>
 <body>
 <header class="bar" id="bar">
@@ -231,6 +233,7 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--brass); out
       </ul>
     </div>
     <button class="primary" id="startGame">Começar partida</button>
+    <p class="app-links" data-app-links></p>
   </div>
 </section>
 
@@ -551,5 +554,6 @@ $('board').addEventListener('pointerup', e => endDrag(e, false));
 $('board').addEventListener('pointercancel', e => endDrag(e, true));
 show('setup');
 </script>
+<script src="pwa.js" defer></script>
 </body>
 </html>
