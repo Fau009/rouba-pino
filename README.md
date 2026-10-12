@@ -27,4 +27,4 @@ Jogo de mesa para 2 a 4 jogadores no mesmo aparelho. Roda direto no navegador, s
 
 ## Estrutura
 
-Um único `index.html` (HTML, CSS e JS puros). Publicado pelo GitHub Pages a partir da branch `main`. O dado é o mesmo do projeto [Dado Online](https://github.com/Fau009/dado-online), usado aqui como parte do jogo.
+Um único `index.html` (HTML, CSS e JS puros). Publicado pelo GitHub Pages a partir da branch `gh-pages`, que é um espelho da `main`: depois de cada alteração na `main`, enviar também para a `gh-pages` (`git push origin main:gh-pages`). O dado é o mesmo do projeto [Dado Online](https://github.com/Fau009/dado-online), usado aqui como parte do jogo.
