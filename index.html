@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rouba Pino</title>
+<meta name="description" content="Rouba Pino: jogo de 2 a 4 jogadores no mesmo aparelho. Role o dado, roube pinos dos outros e resgate os seus.">
+<meta name="theme-color" content="#0a231c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='4' y='3' width='11' height='13' rx='3' fill='%23e8604f'/%3E%3Crect x='17' y='3' width='11' height='13' rx='3' fill='%235b9be6'/%3E%3Crect x='4' y='17' width='11' height='13' rx='3' fill='%23b089e6'/%3E%3Crect x='17' y='17' width='11' height='13' rx='3' fill='%23e9bb3f'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: mesa de feltro escura. Configuração -> tabuleiro com um canto por jogador e o dado no centro. Visual único (escuro) por escolha. */
+:root {
+  --felt: #12352b;
+  --felt-deep: #0a231c;
+  --felt-line: rgba(201,163,90,.28);
+  --ivory: #f3ede0;
+  --ivory-shade: #d9d0bd;
+  --pip: #1c1a17;
+  --ink: #14110d;
+  --brass: #c9a35a;
+  --muted: #8fb0a3;
+  --p0: #e8604f;
+  --p1: #5b9be6;
+  --p2: #e9bb3f;
+  --p3: #b089e6;
+  --display: "DM Serif Display", Georgia, serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; font-size: 14px;
+  background: radial-gradient(ellipse at 50% 40%, var(--felt) 0%, var(--felt-deep) 80%);
+  background-color: var(--felt-deep);
+  color: var(--ivory); font-family: var(--mono);
+  display: flex; flex-direction: column;
+  padding-inline: 16px; padding-block: 12px; box-sizing: border-box;
+  user-select: none; -webkit-tap-highlight-color: transparent; overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--brass); outline-offset: 3px; }
+
+/* Barra superior */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding-bottom: 10px; }
+.bar-title { font-family: var(--display); font-size: 1.2rem; text-align: center; flex: 1; min-width: 0; }
+.ghost-btn {
+  appearance: none; cursor: pointer; font-size: .78rem; padding: .4rem .75rem; border-radius: 8px;
+  border: 1px solid var(--felt-line); background: rgba(0,0,0,.18); color: var(--brass); white-space: nowrap;
+}
+.ghost-btn:hover { background: rgba(201,163,90,.12); }
+.ghost-btn:disabled { opacity: .35; cursor: default; }
+.ghost-btn.armed { background: var(--brass); color: var(--ink); }
+
+.screen { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.label { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+
+/* Configuração */
+.brand { font-family: var(--display); font-weight: 400; font-size: clamp(2.4rem, 10vw, 3.2rem); line-height: 1; margin: 0; }
+.brand-row { display: flex; align-items: center; gap: .9rem; }
+.brand-row .icons { display: grid; grid-template-columns: repeat(2, 16px); gap: 4px; }
+.brand-row .ico { width: 16px; height: 16px; }
+.sub { color: var(--muted); font-size: .85rem; margin: .5rem 0 0; }
+#setup { align-items: center; overflow-y: auto; }
+.setup-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 1.4rem; padding-block: 1rem; }
+.field { display: flex; flex-direction: column; gap: .55rem; }
+.seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 999px; border: 1px solid var(--felt-line); background: rgba(0,0,0,.18); align-self: flex-start; }
+.seg button { appearance: none; border: 0; cursor: pointer; font-size: .85rem; padding: .45rem 1.05rem; border-radius: 999px; color: var(--muted); background: transparent; }
+.seg button[aria-pressed="true"] { background: var(--brass); color: var(--ink); font-weight: 600; }
+.stepper { display: inline-flex; align-items: center; gap: .9rem; }
+.stepper button { appearance: none; cursor: pointer; width: 2.3rem; height: 2.3rem; border-radius: 50%; border: 1px solid var(--felt-line); background: rgba(0,0,0,.18); color: var(--brass); font-size: 1.1rem; }
+.stepper button:disabled { opacity: .35; cursor: default; }
+.stepper output { font-family: var(--display); font-size: 2rem; min-width: 2.2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.names { display: flex; flex-direction: column; gap: .5rem; }
+.name-row { display: flex; align-items: center; gap: .6rem; }
+.name-row .ico { width: 20px; height: 20px; flex: none; }
+.name-row input {
+  flex: 1; min-width: 0; font: inherit; font-size: .9rem; color: var(--ivory);
+  background: rgba(0,0,0,.22); border: 1px solid var(--felt-line); border-radius: 8px; padding: .55rem .7rem;
+}
+.rules { font-size: .78rem; color: var(--muted); line-height: 1.55; margin: 0; padding-left: 1.1rem; display: flex; flex-direction: column; gap: .3rem; }
+.primary {
+  appearance: none; cursor: pointer; border: 0; border-radius: 12px; padding: .85rem 1rem;
+  background: var(--brass); color: var(--ink); font-weight: 600; font-size: .95rem; letter-spacing: .04em;
+}
+
+/* Dado 3D (compartilhado) */
+.hop { transform-style: preserve-3d; }
+.cube {
+  --s: 110px; --h: 55px;
+  width: var(--s); height: var(--s); position: relative; transform-style: preserve-3d;
+  transition: transform 1.2s cubic-bezier(.2,.75,.25,1);
+}
+.face {
+  position: absolute; inset: 0; border-radius: 16%;
+  background: radial-gradient(circle at 30% 25%, var(--ivory) 0%, var(--ivory) 55%, var(--ivory-shade) 100%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.08), inset 0 -6px 14px rgba(0,0,0,.12);
+  display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+  padding: 14%; box-sizing: border-box; backface-visibility: hidden;
+}
+.pipdot { width: 72%; aspect-ratio: 1; border-radius: 50%; place-self: center; background: radial-gradient(circle at 40% 35%, #3a3632, var(--pip) 70%); box-shadow: inset 0 2px 3px rgba(0,0,0,.6); }
+.f1 { transform: rotateY(0deg) translateZ(var(--h)); }
+.f6 { transform: rotateY(180deg) translateZ(var(--h)); }
+.f3 { transform: rotateY(90deg) translateZ(var(--h)); }
+.f4 { transform: rotateY(-90deg) translateZ(var(--h)); }
+.f2 { transform: rotateX(90deg) translateZ(var(--h)); }
+.f5 { transform: rotateX(-90deg) translateZ(var(--h)); }
+.f1 .pipdot { background: radial-gradient(circle at 40% 35%, #c2453a, #8e2219 70%); width: 90%; }
+.shadow { position: absolute; border-radius: 50%; background: rgba(0,0,0,.45); filter: blur(8px); }
+.rolling .hop { animation: hop 1.2s cubic-bezier(.3,.7,.4,1); }
+.rolling .shadow { animation: shrink 1.2s cubic-bezier(.3,.7,.4,1); }
+@keyframes hop { 0%{transform:translateY(0)} 25%{transform:translateY(-60px)} 55%{transform:translateY(0)} 70%{transform:translateY(-14px)} 85%,100%{transform:translateY(0)} }
+@keyframes shrink { 0%{transform:scale(1);opacity:1} 25%{transform:scale(.55);opacity:.4} 55%{transform:scale(1);opacity:1} 70%{transform:scale(.85);opacity:.8} 100%{transform:scale(1);opacity:1} }
+
+/* Tabuleiro dos pinos */
+.board {
+  flex: 1; min-height: 0; display: grid; gap: 10px;
+  grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+  grid-template-rows: minmax(0,1fr) auto minmax(0,1fr);
+  grid-template-areas: "tl tr" "center center" "bl br";
+}
+.corner {
+  --pc: var(--muted);
+  min-height: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px;
+  border-radius: 14px; border: 1px solid var(--felt-line); background: rgba(0,0,0,.2);
+  transition: border-color .2s, box-shadow .2s, background .2s, opacity .3s;
+}
+.corner.vacant { border-style: dashed; opacity: .35; background: transparent; }
+.corner-head { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.corner-head .ico { width: 16px; height: 16px; flex: none; color: var(--pc); }
+.corner-name { font-weight: 600; font-size: .85rem; color: var(--pc); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.corner-meta { font-size: .7rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag { margin-left: auto; font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: var(--pc); color: var(--ink); font-weight: 600; flex: none; }
+.pins { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; }
+.corner.turn { border-color: var(--pc); box-shadow: 0 0 0 1px var(--pc), 0 0 22px -6px var(--pc); }
+.corner.pickable { cursor: pointer; border-style: dashed; border-color: var(--ivory); animation: breathe 1.6s ease-in-out infinite; }
+.corner.picked { border-color: var(--ivory); border-style: solid; background: rgba(243,237,224,.08); }
+.corner.drop { background: color-mix(in srgb, var(--pc) 14%, rgba(0,0,0,.2)); }
+.corner.drop.over { background: color-mix(in srgb, var(--pc) 30%, rgba(0,0,0,.2)); }
+.corner.out { opacity: .38; }
+@keyframes breathe { 50% { background: rgba(243,237,224,.07); } }
+
+.pin {
+  --pc: var(--p0);
+  appearance: none; border: 0; padding: 0; cursor: default; flex: none;
+  width: 36px; height: 40px; border-radius: 10px 10px 12px 12px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 100%, white 12%), var(--pc));
+  box-shadow: inset 0 -3px 0 rgba(0,0,0,.25), 0 2px 4px rgba(0,0,0,.35);
+  color: var(--ink); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  font-weight: 600; font-size: .82rem; font-variant-numeric: tabular-nums; touch-action: none;
+}
+.pin .ico { width: 11px; height: 11px; }
+.pin.can-drag { cursor: grab; outline: 2px solid var(--ivory); outline-offset: 2px; animation: wiggle 1.4s ease-in-out infinite; }
+.pin.locked { opacity: .35; }
+.pin.lifted { opacity: .2; animation: none; }
+.pin.ghost { position: fixed; z-index: 50; pointer-events: none; cursor: grabbing; transform: scale(1.15) rotate(-4deg); box-shadow: 0 10px 20px rgba(0,0,0,.5); animation: none; outline: none; }
+@keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-3deg)} 75%{transform:rotate(3deg)} }
+
+.center { grid-area: center; display: flex; align-items: center; gap: 14px; padding-block: 4px; min-width: 0; }
+.gstage { appearance: none; border: 0; background: none; padding: 0; cursor: default; position: relative; width: 92px; height: 104px; flex: none; display: grid; place-items: center; perspective: 600px; border-radius: 14px; }
+.gstage .cube { --s: 62px; --h: 31px; }
+.gstage .shadow { bottom: 6px; width: 60px; height: 14px; }
+.gstage.ready { cursor: pointer; }
+.gstage.ready .cube { animation: nudge 1.4s ease-in-out infinite; }
+@keyframes nudge { 50% { translate: 0 -5px; } }
+.status { flex: 1; min-width: 0; font-size: .86rem; line-height: 1.45; margin: 0; }
+.status .who { font-weight: 600; }
+.status .big { font-family: var(--display); font-size: 1.6rem; line-height: 1; display: block; margin-bottom: 4px; }
+.status small { display: block; color: var(--muted); font-size: .75rem; margin-top: 3px; }
+
+/* Vitória */
+.overlay { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 16px; background: rgba(5,18,14,.78); backdrop-filter: blur(3px); }
+.win-card { width: 100%; max-width: 340px; text-align: center; padding: 1.8rem 1.4rem; border-radius: 18px; background: var(--felt); border: 1px solid var(--felt-line); display: flex; flex-direction: column; gap: 1rem; align-items: center; }
+.win-card .ico { width: 44px; height: 44px; }
+.win-card h2 { font-family: var(--display); font-weight: 400; font-size: 2.2rem; margin: 0; line-height: 1.05; text-wrap: balance; }
+.win-actions { display: flex; flex-direction: column; gap: .6rem; width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cube { transition-duration: .3s; }
+  .rolling .hop, .rolling .shadow, .pin.can-drag, .corner.pickable, .gstage.ready .cube { animation: none; }
+}
+</style>
+</head>
+<body>
+<header class="bar" id="bar">
+  <button class="ghost-btn" id="btnHome">← Configurar</button>
+  <span class="bar-title" id="barTitle"></span>
+  <button class="ghost-btn" id="btnRestart">Reiniciar</button>
+</header>
+
+<!-- Configuração do jogo dos pinos -->
+<section class="screen" id="setup">
+  <div class="setup-card">
+    <div>
+      <div class="brand-row"><span class="icons" id="brandIcons"></span><h1 class="brand">Rouba Pino</h1></div>
+      <p class="sub">Roube pinos com o dado e resgate os seus. Quem ficar sem pinos sai.</p>
+    </div>
+    <div class="field">
+      <span class="label">Jogadores</span>
+      <div class="seg" id="segPlayers" role="group" aria-label="Quantidade de jogadores">
+        <button data-n="2" aria-pressed="true">2</button>
+        <button data-n="3" aria-pressed="false">3</button>
+        <button data-n="4" aria-pressed="false">4</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="label">Pinos por jogador</span>
+      <div class="stepper">
+        <button id="pinsMinus" aria-label="Menos pinos">−</button>
+        <output id="pinsVal">5</output>
+        <button id="pinsPlus" aria-label="Mais pinos">+</button>
+      </div>
+    </div>
+    <div class="field">
+      <span class="label">Nomes</span>
+      <div class="names" id="names"></div>
+    </div>
+    <div class="field">
+      <span class="label">Regras</span>
+      <ul class="rules">
+        <li>Na sua vez, toque no canto de quem você vai roubar e role o dado.</li>
+        <li>Arraste para o seu canto a quantidade de pinos que saiu no dado. Se o alvo tiver menos, leve todos.</li>
+        <li>Se roubaram você, seu alvo tem que ser quem está com seus pinos, e você pega os seus de volta primeiro.</li>
+        <li>Quem ficar com o canto vazio está fora. O último com pinos vence.</li>
+      </ul>
+    </div>
+    <button class="primary" id="startGame">Começar partida</button>
+  </div>
+</section>
+
+<!-- Tabuleiro -->
+<section class="screen" id="game" hidden>
+  <div class="board" id="board">
+    <div class="corner" data-slot="tl" style="grid-area:tl"></div>
+    <div class="corner" data-slot="tr" style="grid-area:tr"></div>
+    <div class="center">
+      <button class="gstage" id="gstage" aria-label="Rolar o dado"></button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </div>
+    <div class="corner" data-slot="bl" style="grid-area:bl"></div>
+    <div class="corner" data-slot="br" style="grid-area:br"></div>
+  </div>
+</section>
+
+<div class="overlay" id="win" hidden>
+  <div class="win-card">
+    <span id="winIcon"></span>
+    <span class="label">Vencedor</span>
+    <h2 id="winName"></h2>
+    <div class="win-actions">
+      <button class="primary" id="winAgain">Jogar de novo</button>
+      <button class="ghost-btn" id="winHome">Mudar configuração</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ROLL_MS = () => reduceMotion() ? 320 : 1300;
+
+/* ---------- Peças visuais ---------- */
+const PLAYERS = [
+  { color: 'var(--p0)', name: 'Vermelho', icon: 'circle' },
+  { color: 'var(--p1)', name: 'Azul', icon: 'triangle' },
+  { color: 'var(--p2)', name: 'Amarelo', icon: 'square' },
+  { color: 'var(--p3)', name: 'Roxo', icon: 'diamond' },
+];
+const SHAPES = {
+  circle: '<circle cx="8" cy="8" r="6.2"/>',
+  triangle: '<path d="M8 1.6 14.8 14H1.2Z"/>',
+  square: '<rect x="2" y="2" width="12" height="12" rx="1.6"/>',
+  diamond: '<path d="M8 .8 15.2 8 8 15.2.8 8Z"/>',
+};
+const icon = (p, color) => `<svg class="ico" viewBox="0 0 16 16" aria-hidden="true" style="fill:${color || 'currentColor'}">${SHAPES[PLAYERS[p].icon]}</svg>`;
+
+const PIPS = { 1:['2/2'], 2:['1/1','3/3'], 3:['1/1','2/2','3/3'], 4:['1/1','1/3','3/1','3/3'], 5:['1/1','1/3','2/2','3/1','3/3'], 6:['1/1','2/1','3/1','1/3','2/3','3/3'] };
+const FACES = { 1:[0,0], 2:[-90,0], 3:[0,-90], 4:[0,90], 5:[90,0], 6:[0,180] };
+const rand6 = () => 1 + Math.floor(crypto.getRandomValues(new Uint32Array(1))[0] / 4294967296 * 6);
+
+function dieHTML() {
+  const faces = [1,2,3,4,5,6].map(n => `<div class="face f${n}">${PIPS[n].map(a => `<span class="pipdot" style="grid-area:${a}"></span>`).join('')}</div>`).join('');
+  return `<div class="shadow"></div><div class="hop"><div class="cube">${faces}</div></div>`;
+}
+function makeDie(cube, tilt) { return { cube, tx: 0, ty: 0, tilt }; }
+function setFace(d, n, spin) {
+  if (spin) { d.tx += 2 + Math.floor(Math.random() * 2); d.ty += 2 + Math.floor(Math.random() * 2); }
+  const [fx, fy] = FACES[n];
+  d.cube.style.transform = `rotateX(${d.tx*360 + fx + d.tilt[0]}deg) rotateY(${d.ty*360 + fy + d.tilt[1]}deg)`;
+}
+function bounce(el) { el.classList.remove('rolling'); void el.offsetWidth; el.classList.add('rolling'); }
+
+$('brandIcons').innerHTML = [0,1,2,3].map(i => icon(i, PLAYERS[i].color)).join('');
+
+/* ---------- Navegação ---------- */
+let screen = 'setup';
+function show(name) {
+  screen = name;
+  ['setup','game'].forEach(s => $(s).hidden = s !== name);
+  $('bar').hidden = name === 'setup';
+  $('barTitle').textContent = 'Rouba Pino';
+  $('win').hidden = true;
+  disarm();
+  if (name === 'setup') renderSetup();
+}
+
+// botões com confirmação dentro da página (o visualizador não mostra confirm())
+let armedBtn = null, armTimer = null;
+function disarm() {
+  if (armedBtn) { armedBtn.classList.remove('armed'); armedBtn.textContent = armedBtn.dataset.label; }
+  armedBtn = null; clearTimeout(armTimer);
+}
+function confirmThen(btn, action) {
+  const needs = screen === 'game' && G && !G.over;
+  if (!needs || armedBtn === btn) { disarm(); action(); return; }
+  disarm();
+  btn.dataset.label = btn.textContent; btn.textContent = 'Confirmar?'; btn.classList.add('armed');
+  armedBtn = btn; armTimer = setTimeout(disarm, 2800);
+}
+$('btnHome').onclick = e => confirmThen(e.currentTarget, () => show('setup'));
+$('btnRestart').onclick = e => confirmThen(e.currentTarget, () => startGame());
+
+/* ---------- Configuração ---------- */
+const cfg = { players: 2, pins: 5, names: ['', '', '', ''] };
+function renderSetup() {
+  $('segPlayers').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.n === cfg.players));
+  $('pinsVal').textContent = cfg.pins;
+  $('pinsMinus').disabled = cfg.pins <= 3; $('pinsPlus').disabled = cfg.pins >= 10;
+  $('names').innerHTML = Array.from({ length: cfg.players }, (_, i) =>
+    `<label class="name-row">${icon(i, PLAYERS[i].color)}<input id="name${i}" maxlength="14" placeholder="${PLAYERS[i].name}" value="${cfg.names[i].replace(/"/g,'&quot;')}" aria-label="Nome do jogador ${i+1}"></label>`).join('');
+  $('names').querySelectorAll('input').forEach((inp, i) => inp.oninput = () => cfg.names[i] = inp.value);
+}
+$('segPlayers').onclick = e => { const b = e.target.closest('button'); if (b) { cfg.players = +b.dataset.n; renderSetup(); } };
+$('pinsMinus').onclick = () => { cfg.pins = Math.max(3, cfg.pins - 1); renderSetup(); };
+$('pinsPlus').onclick = () => { cfg.pins = Math.min(10, cfg.pins + 1); renderSetup(); };
+$('startGame').onclick = () => { show('game'); startGame(); };
+
+/* ---------- Jogo dos pinos ---------- */
+const SLOTS = { 2: ['tl','br'], 3: ['tl','tr','br'], 4: ['tl','tr','br','bl'] };
+let G = null, gDie = null;
+
+function startGame() {
+  const n = cfg.players;
+  G = {
+    k: cfg.pins, turn: 0, phase: 'choose', target: null, roll: 0, toTake: 0, note: '', over: false,
+    players: Array.from({ length: n }, (_, i) => ({ i, name: (cfg.names[i] || '').trim() || PLAYERS[i].name, slot: SLOTS[n][i], active: true })),
+    pins: [],
+  };
+  G.players.forEach(p => { for (let num = 1; num <= G.k; num++) G.pins.push({ id: `${p.i}-${num}`, owner: p.i, num, holder: p.i }); });
+  $('gstage').innerHTML = dieHTML();
+  gDie = makeDie($('gstage').querySelector('.cube'), [-16, 22]);
+  setFace(gDie, 1, false);
+  $('win').hidden = true;
+  renderGame();
+}
+
+const held = p => G.pins.filter(x => x.holder === p);
+const away = p => G.pins.filter(x => x.owner === p && x.holder !== p);
+const who = p => `<span class="who" style="color:${PLAYERS[p].color}">${esc(G.players[p].name)}</span>`;
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const plural = (n, a, b) => `${n} ${n === 1 ? a : b}`;
+
+// Quem o jogador da vez pode escolher como alvo
+function targets() {
+  const cur = G.turn;
+  const others = G.players.filter(p => p.active && p.i !== cur && held(p.i).length > 0).map(p => p.i);
+  const mine = away(cur);
+  if (!mine.length) return others;
+  const holders = new Set(mine.map(x => x.holder));
+  return others.filter(i => holders.has(i)); // resgate obrigatório
+}
+// Pinos que podem ser arrastados agora
+function grabbable() {
+  if (G.phase !== 'steal') return new Set();
+  const h = held(G.target);
+  const mine = h.filter(x => x.owner === G.turn); // os seus primeiro
+  return new Set((mine.length ? mine : h).map(x => x.id));
+}
+
+function chooseTarget(i) {
+  if (!['choose','roll'].includes(G.phase) || !targets().includes(i)) return;
+  G.target = i; G.phase = 'roll'; renderGame();
+}
+function gRoll() {
+  if (G.phase !== 'roll') return;
+  G.phase = 'rolling'; renderGame();
+  const v = rand6(); setFace(gDie, v, true); bounce($('gstage'));
+  const game = G;
+  setTimeout(() => {
+    if (G !== game) return;
+    $('gstage').classList.remove('rolling');
+    const avail = held(G.target).length;
+    G.roll = v; G.toTake = Math.min(v, avail);
+    G.note = v > avail ? `${G.players[G.target].name} só tinha ${plural(avail, 'pino', 'pinos')}: leve todos.` : '';
+    G.phase = 'steal'; renderGame();
+  }, ROLL_MS());
+}
+function takePin(id) {
+  if (!grabbable().has(id)) return;
+  G.pins.find(x => x.id === id).holder = G.turn;
+  G.toTake--;
+  if (G.toTake <= 0 || held(G.target).length === 0) finishTurn();
+  renderGame();
+}
+function finishTurn() {
+  const out = G.players.filter(p => p.active && held(p.i).length === 0);
+  out.forEach(p => p.active = false);
+  G.phase = 'done';
+  G.note = out.length ? `${out.map(p => p.name).join(' e ')} ficou sem pinos e está fora.` : '';
+  const alive = G.players.filter(p => p.active);
+  if (alive.length === 1) {
+    G.over = true;
+    const game = G;
+    setTimeout(() => { if (G === game) showWin(alive[0].i); }, out.length ? 900 : 300);
+    return;
+  }
+  setTimeout(nextTurn, out.length ? 1800 : 1000);
+}
+function nextTurn() {
+  if (!G || G.over || G.phase !== 'done') return;
+  let t = G.turn;
+  do { t = (t + 1) % G.players.length; } while (!G.players[t].active);
+  Object.assign(G, { turn: t, phase: 'choose', target: null, roll: 0, toTake: 0, note: '' });
+  renderGame();
+}
+function showWin(p) {
+  if (screen !== 'game') return;
+  $('winIcon').innerHTML = icon(p, PLAYERS[p].color);
+  $('winName').textContent = `${G.players[p].name} venceu!`;
+  $('win').hidden = false;
+}
+$('winAgain').onclick = () => { startGame(); };
+$('winHome').onclick = () => show('setup');
+
+function statusHTML() {
+  const cur = G.turn, t = G.target;
+  switch (G.phase) {
+    case 'choose': {
+      const mine = away(cur);
+      return `<span class="big">${who(cur)}</span>Toque no canto de quem você vai roubar.` +
+        (mine.length ? `<small>Roubaram ${plural(mine.length, 'pino seu', 'pinos seus')}: escolha quem está com eles.</small>` : '');
+    }
+    case 'roll':
+      return `<span class="big">${who(cur)}</span>Vai roubar de ${who(t)}. Toque no dado para rolar.<small>Ainda dá para trocar o alvo.</small>`;
+    case 'rolling':
+      return `<span class="big">${who(cur)}</span>Rolando o dado…`;
+    case 'steal': {
+      const ownFirst = held(t).some(x => x.owner === cur);
+      return `<span class="big">Tirou ${G.roll}</span>Arraste ${plural(G.toTake, 'pino', 'pinos')} de ${who(t)} para o seu canto.` +
+        (ownFirst ? `<small>Pegue os seus pinos de volta primeiro.</small>` : '') +
+        (G.note ? `<small>${esc(G.note)}</small>` : '');
+    }
+    case 'done':
+      return `<span class="big">${G.note ? 'Eliminado' : 'Fim da jogada'}</span>${G.note ? esc(G.note) : 'Passando a vez…'}`;
+  }
+}
+
+function renderGame() {
+  const tg = ['choose','roll'].includes(G.phase) ? new Set(targets()) : new Set();
+  const grab = grabbable();
+  document.querySelectorAll('#board .corner').forEach(el => {
+    const p = G.players.find(x => x.slot === el.dataset.slot);
+    el.className = 'corner';
+    el.removeAttribute('data-player'); el.removeAttribute('role'); el.removeAttribute('tabindex'); el.removeAttribute('aria-label');
+    if (!p) { el.classList.add('vacant'); el.innerHTML = ''; el.style.removeProperty('--pc'); return; }
+    el.dataset.player = p.i;
+    el.style.setProperty('--pc', PLAYERS[p.i].color);
+    const pins = held(p.i).sort((a, b) => (a.owner === p.i ? -1 : 0) - (b.owner === p.i ? -1 : 0) || a.owner - b.owner || a.num - b.num);
+    const ownHome = pins.filter(x => x.owner === p.i).length;
+    let tag = '';
+    if (!p.active) { el.classList.add('out'); tag = 'Fora'; }
+    else if (p.i === G.turn) { el.classList.add('turn'); tag = 'Vez'; if (G.phase === 'steal') el.classList.add('drop'); }
+    if (tg.has(p.i)) {
+      el.classList.add('pickable'); el.setAttribute('role', 'button'); el.tabIndex = 0;
+      el.setAttribute('aria-label', `Roubar de ${p.name}`);
+    }
+    if (G.target === p.i && G.phase !== 'done') { el.classList.add('picked'); el.classList.remove('pickable'); tag = 'Alvo'; }
+    el.innerHTML =
+      `<div class="corner-head">${icon(p.i)}<span class="corner-name">${esc(p.name)}</span>${tag ? `<span class="tag">${tag}</span>` : ''}</div>` +
+      `<span class="corner-meta">${plural(pins.length, 'pino', 'pinos')} · ${ownHome}/${G.k} seus</span>` +
+      `<div class="pins">${pins.map(x => {
+        const cls = grab.has(x.id) ? 'can-drag' : (G.phase === 'steal' && p.i === G.target ? 'locked' : '');
+        return `<button class="pin ${cls}" data-id="${x.id}" style="--pc:${PLAYERS[x.owner].color}" ${cls === 'can-drag' ? '' : 'tabindex="-1"'} aria-label="Pino ${x.num} de ${esc(G.players[x.owner].name)}">${icon(x.owner, 'var(--ink)')}${x.num}</button>`;
+      }).join('')}</div>`;
+  });
+  $('gstage').classList.toggle('ready', G.phase === 'roll');
+  $('status').innerHTML = statusHTML();
+}
+
+/* Toques e teclado no tabuleiro */
+let suppressClick = false;
+$('board').addEventListener('click', e => {
+  if (!G) return;
+  const pin = e.target.closest('.pin.can-drag');
+  if (pin) { if (!suppressClick) takePin(pin.dataset.id); return; }
+  const corner = e.target.closest('.corner[data-player]');
+  if (corner) chooseTarget(+corner.dataset.player);
+});
+$('board').addEventListener('keydown', e => {
+  const corner = e.target.closest('.corner.pickable');
+  if (corner && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); chooseTarget(+corner.dataset.player); }
+});
+$('gstage').onclick = () => G && gRoll();
+
+/* Arrastar pinos */
+let drag = null;
+function myCorner() { return document.querySelector(`#board .corner[data-player="${G.turn}"]`); }
+function overMine(x, y) {
+  const r = myCorner().getBoundingClientRect(), pad = 12;
+  return x >= r.left - pad && x <= r.right + pad && y >= r.top - pad && y <= r.bottom + pad;
+}
+$('board').addEventListener('pointerdown', e => {
+  const pin = e.target.closest('.pin.can-drag');
+  if (!pin || e.button > 0) return;
+  const r = pin.getBoundingClientRect();
+  drag = { id: pin.dataset.id, pin, sx: e.clientX, sy: e.clientY, ox: e.clientX - r.left, oy: e.clientY - r.top, moved: false, ghost: null, w: r.width, h: r.height };
+  pin.setPointerCapture(e.pointerId);
+});
+$('board').addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (!drag.moved && Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) > 6) {
+    drag.moved = true;
+    drag.ghost = drag.pin.cloneNode(true);
+    drag.ghost.className = 'pin ghost';
+    Object.assign(drag.ghost.style, { width: drag.w + 'px', height: drag.h + 'px' });
+    document.body.appendChild(drag.ghost);
+    drag.pin.classList.add('lifted');
+  }
+  if (drag.moved) {
+    drag.ghost.style.left = (e.clientX - drag.ox) + 'px';
+    drag.ghost.style.top = (e.clientY - drag.oy) + 'px';
+    myCorner().classList.toggle('over', overMine(e.clientX, e.clientY));
+  }
+});
+function endDrag(e, cancelled) {
+  if (!drag) return;
+  const d = drag; drag = null;
+  if (!d.moved) return; // toque simples: o clique cuida
+  d.ghost.remove(); d.pin.classList.remove('lifted');
+  myCorner()?.classList.remove('over');
+  suppressClick = true; setTimeout(() => suppressClick = false, 0);
+  if (!cancelled && overMine(e.clientX, e.clientY)) takePin(d.id);
+}
+$('board').addEventListener('pointerup', e => endDrag(e, false));
+$('board').addEventListener('pointercancel', e => endDrag(e, true));
+show('setup');
+</script>
+</body>
+</html>
